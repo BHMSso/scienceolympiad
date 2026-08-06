@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — BHMS Science Olympiad</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="site-header-inner">
+    <a class="brand" href="index.html">
+      <span class="brand-mark">SO</span>
+      <span class="brand-text">
+        <span class="name">BHMS Sci Oly</span>
+        <span class="sub">Admin</span>
+      </span>
+    </a>
+    <button class="nav-toggle" aria-label="Toggle menu">☰</button>
+    <nav class="tabs">
+      <a href="index.html">Home</a>
+      <a href="events.html">Events</a>
+      <a href="resources.html">Event Resources</a>
+      <a href="ask.html">Ask a Question</a>
+    </nav>
+  </div>
+</header>
+
+<!-- LOGIN -->
+<section id="login-section" style="padding-top:64px;">
+  <div class="wrap">
+    <div class="card login-box">
+      <div class="eyebrow">Officers only</div>
+      <h2 style="margin-bottom:20px;">Admin login</h2>
+      <form id="login-form">
+        <div class="field">
+          <label for="login-email">Email</label>
+          <input type="email" id="login-email" value="bhms.so.2021@gmail.com" required>
+        </div>
+        <div class="field">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Log in</button>
+        <div class="status-msg" id="login-status"></div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- ADMIN DASHBOARD (hidden until logged in) -->
+<section id="dashboard-section" style="display:none; padding-top:44px;">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Admin dashboard</h2>
+      <button class="btn" id="logout-btn">Log out</button>
+    </div>
+
+    <div class="admin-tabs">
+      <button class="admin-tab-btn active" data-tab="questions">Answer Questions</button>
+      <button class="admin-tab-btn" data-tab="upload">Upload Resources</button>
+    </div>
+
+    <!-- ANSWER QUESTIONS -->
+    <div class="admin-panel active" id="panel-questions">
+      <h3 style="font-size:1rem; margin-bottom:14px;">Unanswered</h3>
+      <div id="unanswered-list"><p class="qa-empty">Loading…</p></div>
+
+      <h3 style="font-size:1rem; margin:32px 0 14px;">Already answered</h3>
+      <div id="answered-list"></div>
+    </div>
+
+    <!-- UPLOAD RESOURCES -->
+    <div class="admin-panel" id="panel-upload">
+      <div class="card" style="max-width:560px;">
+        <form id="upload-form">
+          <div class="field">
+            <label for="up-event">Event</label>
+            <select id="up-event" required></select>
+          </div>
+          <div class="field">
+            <label for="up-title">Title</label>
+            <input type="text" id="up-title" required placeholder="e.g. Circuit Lab formula sheet">
+          </div>
+          <div class="field">
+            <label for="up-type">Resource type</label>
+            <select id="up-type">
+              <option value="text">Text instructions (no file)</option>
+              <option value="pdf">PDF</option>
+              <option value="image">Image</option>
+            </select>
+          </div>
+          <div class="field" id="up-file-field">
+            <label for="up-file">File</label>
+            <input type="file" id="up-file" accept=".pdf,image/*">
+          </div>
+          <div class="field">
+            <label for="up-desc">Description / text content</label>
+            <textarea id="up-desc" placeholder="Short description, or the full text instructions if this is a text-only resource."></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">Post resource</button>
+          <div class="status-msg" id="upload-status"></div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="site">
+  <div class="wrap">
+    <p>BHMS Science Olympiad · Bernardo Heights Middle School</p>
+    <a href="mailto:bhms.so.2021@gmail.com">bhms.so.2021@gmail.com</a>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/events-data.js"></script>
+<script src="js/main.js"></script>
+<script>
+  const ADMIN_EMAIL = "bhms.so.2021@gmail.com";
+  const loginSection = document.getElementById("login-section");
+  const dashboardSection = document.getElementById("dashboard-section");
+
+  // ---------- auth ----------
+  async function checkSession() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session && session.user.email === ADMIN_EMAIL) {
+      showDashboard();
+    } else {
+      showLogin();
+    }
+  }
+
+  function showLogin() {
+    loginSection.style.display = "block";
+    dashboardSection.style.display = "none";
+  }
+
+  function showDashboard() {
+    loginSection.style.display = "none";
+    dashboardSection.style.display = "block";
+    loadQuestions();
+    populateEventSelect();
+  }
+
+  document.getElementById("login-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("login-email").value.trim();
+    const password = document.getElementById("login-password").value;
+    const statusEl = document.getElementById("login-status");
+    statusEl.classList.remove("ok", "err");
+
+    if (email !== ADMIN_EMAIL) {
+      statusEl.textContent = "This admin panel is restricted to the team account.";
+      statusEl.classList.add("err", "show");
+      return;
+    }
+
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) {
+      statusEl.textContent = "Login failed — check the password.";
+      statusEl.classList.add("err", "show");
+      return;
+    }
+    showDashboard();
+  });
+
+  document.getElementById("logout-btn").addEventListener("click", async () => {
+    await supabaseClient.auth.signOut();
+    showLogin();
+  });
+
+  // ---------- tabs ----------
+  document.querySelectorAll(".admin-tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".admin-tab-btn").forEach((b) => b.classList.remove("active"));
+      document.querySelectorAll(".admin-panel").forEach((p) => p.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById(`panel-${btn.dataset.tab}`).classList.add("active");
+    });
+  });
+
+  // ---------- questions ----------
+  async function loadQuestions() {
+    const { data, error } = await supabaseClient
+      .from("questions")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    const unansweredEl = document.getElementById("unanswered-list");
+    const answeredEl = document.getElementById("answered-list");
+
+    if (error) {
+      unansweredEl.innerHTML = `<p class="qa-empty">Couldn't load questions.</p>`;
+      console.error(error);
+      return;
+    }
+
+    const unanswered = data.filter((q) => !q.answered);
+    const answered = data.filter((q) => q.answered);
+
+    unansweredEl.innerHTML = unanswered.length
+      ? unanswered.map(renderUnansweredItem).join("")
+      : `<p class="qa-empty">No pending questions.</p>`;
+
+    answeredEl.innerHTML = answered.length
+      ? answered.map(renderAnsweredItem).join("")
+      : `<p class="qa-empty">Nothing answered yet.</p>`;
+
+    unansweredEl.querySelectorAll("form.answer-form").forEach((f) =>
+      f.addEventListener("submit", submitAnswer)
+    );
+  }
+
+  function renderUnansweredItem(q) {
+    return `
+      <div class="qa-item">
+        <span class="pill pending">Pending</span>
+        ${q.event_name ? `<span class="pill">${escapeHTML(q.event_name)}</span>` : ""}
+        <div style="font-family:var(--mono); font-size:.72rem; color:var(--ink-soft); margin-bottom:6px;">
+          From ${escapeHTML(q.name)} · ${timeAgo(q.created_at)}
+        </div>
+        <div class="q">${escapeHTML(q.question)}</div>
+        <form class="answer-form" data-id="${q.id}" style="margin-top:10px;">
+          <textarea placeholder="Type your answer…" required style="min-height:70px;"></textarea>
+          <button type="submit" class="btn btn-primary" style="margin-top:8px;">Post answer</button>
+        </form>
+      </div>
+    `;
+  }
+
+  function renderAnsweredItem(q) {
+    return `
+      <div class="qa-item">
+        ${q.event_name ? `<span class="pill">${escapeHTML(q.event_name)}</span>` : ""}
+        <div class="q">${escapeHTML(q.question)}</div>
+        <div class="a">${escapeHTML(q.answer)}</div>
+      </div>
+    `;
+  }
+
+  async function submitAnswer(e) {
+    e.preventDefault();
+    const form = e.target;
+    const id = form.dataset.id;
+    const answer = form.querySelector("textarea").value.trim();
+    const btn = form.querySelector("button");
+    btn.disabled = true;
+    btn.textContent = "Posting…";
+
+    const { error } = await supabaseClient
+      .from("questions")
+      .update({ answer, answered: true, answered_at: new Date().toISOString() })
+      .eq("id", id);
+
+    if (error) {
+      alert("Couldn't post answer — try again.");
+      console.error(error);
+      btn.disabled = false;
+      btn.textContent = "Post answer";
+      return;
+    }
+    loadQuestions();
+  }
+
+  // ---------- upload resources ----------
+  function populateEventSelect() {
+    const sel = document.getElementById("up-event");
+    if (sel.options.length) return;
+    ALL_EVENTS.forEach((ev) => {
+      const opt = document.createElement("option");
+      opt.value = ev.slug;
+      opt.textContent = `${ev.code} · ${ev.name}`;
+      sel.appendChild(opt);
+    });
+  }
+
+  document.getElementById("up-type").addEventListener("change", (e) => {
+    document.getElementById("up-file-field").style.display =
+      e.target.value === "text" ? "none" : "block";
+  });
+
+  document.getElementById("upload-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const statusEl = document.getElementById("upload-status");
+    statusEl.classList.remove("ok", "err");
+
+    const slug = document.getElementById("up-event").value;
+    const title = document.getElementById("up-title").value.trim();
+    const type = document.getElementById("up-type").value;
+    const description = document.getElementById("up-desc").value.trim();
+    const fileInput = document.getElementById("up-file");
+    const submitBtn = e.target.querySelector("button[type=submit]");
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Posting…";
+
+    let file_url = null;
+
+    try {
+      if (type !== "text") {
+        const file = fileInput.files[0];
+        if (!file) throw new Error("Please choose a file, or switch type to Text.");
+        const path = `${slug}/${Date.now()}-${file.name}`;
+        const { error: upErr } = await supabaseClient.storage
+          .from("resources")
+          .upload(path, file);
+        if (upErr) throw upErr;
+        const { data: urlData } = supabaseClient.storage.from("resources").getPublicUrl(path);
+        file_url = urlData.publicUrl;
+      }
+
+      const { error: insertErr } = await supabaseClient.from("resources").insert({
+        event_slug: slug, title, type, description, file_url,
+      });
+      if (insertErr) throw insertErr;
+
+      statusEl.textContent = "Resource posted.";
+      statusEl.classList.add("ok", "show");
+      e.target.reset();
+      document.getElementById("up-file-field").style.display = "block";
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = err.message || "Something went wrong.";
+      statusEl.classList.add("err", "show");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Post resource";
+    }
+  });
+
+  checkSession();
+</script>
+</body>
+</html>

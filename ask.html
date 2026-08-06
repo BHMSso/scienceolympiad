@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ask a Question — BHMS Science Olympiad</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="site-header-inner">
+    <a class="brand" href="index.html">
+      <span class="brand-mark">SO</span>
+      <span class="brand-text">
+        <span class="name">BHMS Sci Oly</span>
+        <span class="sub">Bernardo Heights MS</span>
+      </span>
+    </a>
+    <button class="nav-toggle" aria-label="Toggle menu">☰</button>
+    <nav class="tabs">
+      <a href="index.html">Home</a>
+      <a href="events.html">Events</a>
+      <a href="resources.html">Event Resources</a>
+      <a href="ask.html">Ask a Question</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero" style="padding:44px 0 32px;">
+  <div class="wrap">
+    <div class="eyebrow">Q&amp;A</div>
+    <h1 style="font-size:clamp(1.8rem,4vw,2.6rem);">Ask a Question</h1>
+    <p class="lede" style="margin-bottom:0;">Questions about events, tryouts, tournaments, or the team in general — send it in and an officer will post an answer here.</p>
+  </div>
+</section>
+
+<section style="padding-bottom:32px;">
+  <div class="wrap">
+    <div class="card" style="max-width:560px;">
+      <form id="question-form">
+        <div class="field">
+          <label for="name">Your name</label>
+          <input type="text" id="name" required>
+        </div>
+        <div class="field">
+          <label for="event">Related event (optional)</label>
+          <select id="event">
+            <option value="">General / not event-specific</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="question">Your question</label>
+          <textarea id="question" required placeholder="Type your question here…"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Submit question</button>
+        <div class="status-msg" id="form-status"></div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Answered questions</h2>
+      <div class="section-note">Most recent first</div>
+    </div>
+    <div id="qa-list">
+      <p class="qa-empty">Loading…</p>
+    </div>
+  </div>
+</section>
+
+<footer class="site">
+  <div class="wrap">
+    <p>BHMS Science Olympiad · Bernardo Heights Middle School</p>
+    <a href="mailto:bhms.so.2021@gmail.com">bhms.so.2021@gmail.com</a>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/events-data.js"></script>
+<script src="js/main.js"></script>
+<script>
+  const eventSelect = document.getElementById("event");
+  ALL_EVENTS.forEach((ev) => {
+    const opt = document.createElement("option");
+    opt.value = ev.name;
+    opt.textContent = `${ev.code} · ${ev.name}`;
+    eventSelect.appendChild(opt);
+  });
+
+  const form = document.getElementById("question-form");
+  const statusEl = document.getElementById("form-status");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = document.getElementById("name").value.trim();
+    const event_name = document.getElementById("event").value;
+    const question = document.getElementById("question").value.trim();
+
+    const submitBtn = form.querySelector("button[type=submit]");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Submitting…";
+
+    const { error } = await supabaseClient.from("questions").insert({
+      name, event_name, question, answered: false,
+    });
+
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Submit question";
+
+    statusEl.classList.remove("ok", "err");
+    if (error) {
+      statusEl.textContent = "Something went wrong — please try again.";
+      statusEl.classList.add("err", "show");
+      console.error(error);
+    } else {
+      statusEl.textContent = "Question submitted! An officer will answer it soon.";
+      statusEl.classList.add("ok", "show");
+      form.reset();
+    }
+  });
+
+  async function loadAnswered() {
+    const list = document.getElementById("qa-list");
+    const { data, error } = await supabaseClient
+      .from("questions")
+      .select("*")
+      .eq("answered", true)
+      .order("answered_at", { ascending: false });
+
+    if (error) {
+      list.innerHTML = `<p class="qa-empty">Couldn't load questions right now.</p>`;
+      console.error(error);
+      return;
+    }
+    if (!data || data.length === 0) {
+      list.innerHTML = `<p class="qa-empty">No answered questions yet — check back soon.</p>`;
+      return;
+    }
+    list.innerHTML = data.map((q) => `
+      <div class="qa-item">
+        ${q.event_name ? `<span class="pill">${escapeHTML(q.event_name)}</span>` : ""}
+        <div class="q">${escapeHTML(q.question)}</div>
+        <div class="a">${escapeHTML(q.answer)}</div>
+      </div>
+    `).join("");
+  }
+  loadAnswered();
+</script>
+</body>
+</html>

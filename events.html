@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Events — BHMS Science Olympiad</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="site-header-inner">
+    <a class="brand" href="index.html">
+      <span class="brand-mark">SO</span>
+      <span class="brand-text">
+        <span class="name">BHMS Sci Oly</span>
+        <span class="sub">Bernardo Heights MS</span>
+      </span>
+    </a>
+    <button class="nav-toggle" aria-label="Toggle menu">☰</button>
+    <nav class="tabs">
+      <a href="index.html">Home</a>
+      <a href="events.html">Events</a>
+      <a href="resources.html">Event Resources</a>
+      <a href="ask.html">Ask a Question</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero" style="padding:44px 0 32px;">
+  <div class="wrap">
+    <div class="eyebrow">23 events · 5 divisions</div>
+    <h1 style="font-size:clamp(1.8rem,4vw,2.6rem);">Events</h1>
+    <p class="lede" style="margin-bottom:0;">Every event our team competes in this season, grouped by division. Tap an event to open its official Science Olympiad rules page — study resources for each are on the <a href="resources.html">Event Resources</a> page.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap" id="events-container"></div>
+</section>
+
+<footer class="site">
+  <div class="wrap">
+    <p>BHMS Science Olympiad · Bernardo Heights Middle School</p>
+    <a href="mailto:bhms.so.2021@gmail.com">bhms.so.2021@gmail.com</a>
+  </div>
+</footer>
+
+<script src="js/events-data.js"></script>
+<script>
+  const container = document.getElementById("events-container");
+  DIVISIONS.forEach((div, di) => {
+    const block = document.createElement("div");
+    block.className = "division-block";
+    const codePrefix = div.code;
+    block.innerHTML = `
+      <h3 class="division-title">${codePrefix} · ${div.name}</h3>
+      <div class="grid grid-3">
+        ${div.events.map((ev, i) => {
+          const code = `${codePrefix}-${String(i + 1).padStart(2, "0")}`;
+          return `
+            <a class="event-card" href="${ev.url}" target="_blank" rel="noopener">
+              <div class="tag">EVENT <b>${code}</b></div>
+              <div class="body">
+                <h3>${ev.name}</h3>
+                <div class="cat">${div.name}</div>
+              </div>
+              <div class="arrow">↗</div>
+            </a>
+          `;
+        }).join("")}
+      </div>
+    `;
+    container.appendChild(block);
+  });
+</script>
+<script src="js/main.js"></script>
+</body>
+</html>

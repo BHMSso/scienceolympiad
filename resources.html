@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Event Resources — BHMS Science Olympiad</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="site-header-inner">
+    <a class="brand" href="index.html">
+      <span class="brand-mark">SO</span>
+      <span class="brand-text">
+        <span class="name">BHMS Sci Oly</span>
+        <span class="sub">Bernardo Heights MS</span>
+      </span>
+    </a>
+    <button class="nav-toggle" aria-label="Toggle menu">☰</button>
+    <nav class="tabs">
+      <a href="index.html">Home</a>
+      <a href="events.html">Events</a>
+      <a href="resources.html">Event Resources</a>
+      <a href="ask.html">Ask a Question</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero" style="padding:44px 0 32px;">
+  <div class="wrap">
+    <div class="eyebrow">Study material</div>
+    <h1 style="font-size:clamp(1.8rem,4vw,2.6rem);">Event Resources</h1>
+    <p class="lede" style="margin-bottom:0;">Notes, practice sets, and reference material posted by officers. Pick an event to see what's been shared so far — new material gets added throughout the season.</p>
+  </div>
+</section>
+
+<section style="padding-bottom:24px;">
+  <div class="wrap">
+    <label for="event-filter">Filter by event</label>
+    <select id="event-filter" style="max-width:360px;">
+      <option value="">All events</option>
+    </select>
+  </div>
+</section>
+
+<section style="padding-top:0;">
+  <div class="wrap" id="resources-container">
+    <p class="res-empty">Loading resources…</p>
+  </div>
+</section>
+
+<footer class="site">
+  <div class="wrap">
+    <p>BHMS Science Olympiad · Bernardo Heights Middle School</p>
+    <a href="mailto:bhms.so.2021@gmail.com">bhms.so.2021@gmail.com</a>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/events-data.js"></script>
+<script src="js/main.js"></script>
+<script>
+  const filterSelect = document.getElementById("event-filter");
+  ALL_EVENTS.forEach((ev) => {
+    const opt = document.createElement("option");
+    opt.value = ev.slug;
+    opt.textContent = `${ev.code} · ${ev.name}`;
+    filterSelect.appendChild(opt);
+  });
+
+  let allResources = [];
+
+  function iconFor(type) {
+    if (type === "pdf") return "PDF";
+    if (type === "image") return "IMG";
+    return "TXT";
+  }
+
+  function render(filterSlug) {
+    const container = document.getElementById("resources-container");
+    const filtered = filterSlug
+      ? allResources.filter((r) => r.event_slug === filterSlug)
+      : allResources;
+
+    if (filtered.length === 0) {
+      container.innerHTML = `<p class="res-empty">No resources posted yet${filterSlug ? " for this event" : ""}. Check back soon.</p>`;
+      return;
+    }
+
+    // group by event_slug, preserving ALL_EVENTS order
+    const bySlug = {};
+    filtered.forEach((r) => {
+      bySlug[r.event_slug] = bySlug[r.event_slug] || [];
+      bySlug[r.event_slug].push(r);
+    });
+
+    const orderedSlugs = filterSlug
+      ? [filterSlug]
+      : ALL_EVENTS.map((e) => e.slug).filter((s) => bySlug[s]);
+
+    container.innerHTML = orderedSlugs.map((slug) => {
+      const evMeta = ALL_EVENTS.find((e) => e.slug === slug);
+      const items = bySlug[slug] || [];
+      return `
+        <div class="division-block">
+          <h3 class="division-title">${evMeta ? evMeta.code + " · " + evMeta.name : slug}</h3>
+          ${items.map((r) => `
+            <div class="resource-item">
+              <div class="icon">${iconFor(r.type)}</div>
+              <div class="meta">
+                <h4>${escapeHTML(r.title)}</h4>
+                ${r.description ? `<div class="desc">${escapeHTML(r.description)}</div>` : ""}
+                ${r.file_url ? `<a class="link" href="${r.file_url}" target="_blank" rel="noopener">Open file ↗</a>` : ""}
+                <div class="link" style="color:var(--ink-soft); margin-top:2px;">Posted ${timeAgo(r.created_at)}</div>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }).join("");
+  }
+
+  async function loadResources() {
+    const { data, error } = await supabaseClient
+      .from("resources")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      document.getElementById("resources-container").innerHTML =
+        `<p class="res-empty">Couldn't load resources right now. Try refreshing.</p>`;
+      console.error(error);
+      return;
+    }
+    allResources = data;
+    render("");
+  }
+
+  filterSelect.addEventListener("change", () => render(filterSelect.value));
+  loadResources();
+</script>
+</body>
+</html>
