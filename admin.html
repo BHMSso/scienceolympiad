@@ -213,6 +213,22 @@
     unansweredEl.querySelectorAll("form.answer-form").forEach((f) =>
       f.addEventListener("submit", submitAnswer)
     );
+    document.querySelectorAll(".delete-question-btn").forEach((btn) =>
+      btn.addEventListener("click", deleteQuestion)
+    );
+  }
+
+  async function deleteQuestion(e) {
+    const id = e.target.dataset.id;
+    if (!confirm("Delete this question? This can't be undone.")) return;
+
+    const { error } = await supabaseClient.from("questions").delete().eq("id", id);
+    if (error) {
+      alert("Couldn't delete — try again.");
+      console.error(error);
+      return;
+    }
+    loadQuestions();
   }
 
   function renderUnansweredItem(q) {
@@ -226,7 +242,10 @@
         <div class="q">${escapeHTML(q.question)}</div>
         <form class="answer-form" data-id="${q.id}" style="margin-top:10px;">
           <textarea placeholder="Type your answer…" required style="min-height:70px;"></textarea>
-          <button type="submit" class="btn btn-primary" style="margin-top:8px;">Post answer</button>
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <button type="submit" class="btn btn-primary">Post answer</button>
+            <button type="button" class="btn delete-question-btn" data-id="${q.id}" style="border-color:var(--red-dim); color:var(--red-dim);">Delete</button>
+          </div>
         </form>
       </div>
     `;
@@ -238,6 +257,7 @@
         ${q.event_name ? `<span class="pill">${escapeHTML(q.event_name)}</span>` : ""}
         <div class="q">${escapeHTML(q.question)}</div>
         <div class="a">${escapeHTML(q.answer)}</div>
+        <button type="button" class="btn delete-question-btn" data-id="${q.id}" style="margin-top:10px; border-color:var(--red-dim); color:var(--red-dim);">Delete</button>
       </div>
     `;
   }
