@@ -235,7 +235,6 @@
     return `
       <div class="qa-item">
         <span class="pill pending">Pending</span>
-        ${q.event_name ? `<span class="pill">${escapeHTML(q.event_name)}</span>` : ""}
         <div style="font-family:var(--mono); font-size:.72rem; color:var(--ink-soft); margin-bottom:6px;">
           From ${escapeHTML(q.name)} · ${timeAgo(q.created_at)}
         </div>
@@ -254,7 +253,6 @@
   function renderAnsweredItem(q) {
     return `
       <div class="qa-item">
-        ${q.event_name ? `<span class="pill">${escapeHTML(q.event_name)}</span>` : ""}
         <div class="q">${escapeHTML(q.question)}</div>
         <div class="a">${escapeHTML(q.answer)}</div>
         <button type="button" class="btn delete-question-btn" data-id="${q.id}" style="margin-top:10px; border-color:var(--red-dim); color:var(--red-dim);">Delete</button>
