@@ -37,7 +37,13 @@
 
 <section style="padding-bottom:32px;">
   <div class="wrap">
-    <div class="card" style="max-width:560px;">
+    <div class="card" style="max-width:560px;" id="my-question-card" hidden>
+      <div class="eyebrow">Your question</div>
+      <div id="my-question-content"></div>
+      <a href="ask.html" style="display:inline-block; margin-top:14px; font-family:var(--mono); font-size:.78rem;">← Ask another question</a>
+    </div>
+
+    <div class="card" style="max-width:560px;" id="form-card">
       <form id="question-form">
         <div class="field">
           <label for="name">Your name</label>
@@ -54,7 +60,7 @@
   </div>
 </section>
 
-<section>
+<section id="qa-section">
   <div class="wrap">
     <div class="section-head">
       <h2>Answered questions</h2>
@@ -90,9 +96,11 @@
     submitBtn.disabled = true;
     submitBtn.textContent = "Submitting…";
 
-    const { error } = await supabaseClient.from("questions").insert({
-      name, question, answered: false,
-    });
+    const { data, error } = await supabaseClient
+      .from("questions")
+      .insert({ name, question, answered: false })
+      .select()
+      .single();
 
     submitBtn.disabled = false;
     submitBtn.textContent = "Submit question";
@@ -103,7 +111,10 @@
       statusEl.classList.add("err", "show");
       console.error(error);
     } else {
-      statusEl.textContent = "Question submitted! An officer will answer it soon.";
+      const myLink = `${location.origin}${location.pathname}?id=${data.id}`;
+      statusEl.innerHTML = `Question submitted! An officer will answer it soon.<br><br>
+        <strong>Bookmark this link</strong> to check back for your answer:<br>
+        <a href="${myLink}">${myLink}</a>`;
       statusEl.classList.add("ok", "show");
       form.reset();
     }
@@ -115,6 +126,7 @@
       .from("questions")
       .select("*")
       .eq("answered", true)
+      .eq("visible", true)
       .order("answered_at", { ascending: false });
 
     if (error) {
@@ -133,7 +145,41 @@
       </div>
     `).join("");
   }
-  loadAnswered();
+
+  // ---------- private "my question" lookup via ?id= ----------
+  async function loadMyQuestion(id) {
+    const card = document.getElementById("my-question-card");
+    const formCard = document.getElementById("form-card");
+    const content = document.getElementById("my-question-content");
+    const qaSection = document.getElementById("qa-section");
+
+    const { data, error } = await supabaseClient
+      .from("questions")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    card.hidden = false;
+    formCard.hidden = true;
+    if (qaSection) qaSection.hidden = true;
+
+    if (error || !data) {
+      content.innerHTML = `<p class="qa-empty">Couldn't find that question — the link may be incorrect.</p>`;
+      return;
+    }
+
+    content.innerHTML = data.answered
+      ? `<div class="q">${escapeHTML(data.question)}</div><div class="a">${escapeHTML(data.answer)}</div>`
+      : `<div class="q">${escapeHTML(data.question)}</div><p class="qa-empty" style="margin-top:10px;">Not answered yet — check back soon.</p>`;
+  }
+
+  const params = new URLSearchParams(location.search);
+  const myId = params.get("id");
+  if (myId) {
+    loadMyQuestion(myId);
+  } else {
+    loadAnswered();
+  }
 </script>
 </body>
 </html>
