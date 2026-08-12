@@ -216,6 +216,23 @@
     document.querySelectorAll(".delete-question-btn").forEach((btn) =>
       btn.addEventListener("click", deleteQuestion)
     );
+    document.querySelectorAll(".visibility-switch").forEach((sw) =>
+      sw.addEventListener("change", toggleVisibility)
+    );
+  }
+
+  async function toggleVisibility(e) {
+    const id = e.target.dataset.id;
+    const visible = e.target.checked;
+    const { error } = await supabaseClient
+      .from("questions")
+      .update({ visible })
+      .eq("id", id);
+    if (error) {
+      alert("Couldn't update visibility — try again.");
+      console.error(error);
+      e.target.checked = !visible;
+    }
   }
 
   async function deleteQuestion(e) {
@@ -241,6 +258,10 @@
         <div class="q">${escapeHTML(q.question)}</div>
         <form class="answer-form" data-id="${q.id}" style="margin-top:10px;">
           <textarea placeholder="Type your answer…" required style="min-height:70px;"></textarea>
+          <label style="display:flex; align-items:center; gap:8px; margin-top:10px; text-transform:none; letter-spacing:0; font-size:.85rem; cursor:pointer;">
+            <input type="checkbox" class="visible-toggle" checked style="width:auto;">
+            Show on public Ask a Question page
+          </label>
           <div style="display:flex; gap:8px; margin-top:8px;">
             <button type="submit" class="btn btn-primary">Post answer</button>
             <button type="button" class="btn delete-question-btn" data-id="${q.id}" style="border-color:var(--red-dim); color:var(--red-dim);">Delete</button>
@@ -255,6 +276,10 @@
       <div class="qa-item">
         <div class="q">${escapeHTML(q.question)}</div>
         <div class="a">${escapeHTML(q.answer)}</div>
+        <label style="display:flex; align-items:center; gap:8px; margin-top:12px; text-transform:none; letter-spacing:0; font-size:.85rem; cursor:pointer;">
+          <input type="checkbox" class="visibility-switch" data-id="${q.id}" ${q.visible ? "checked" : ""} style="width:auto;">
+          Show on public Ask a Question page
+        </label>
         <button type="button" class="btn delete-question-btn" data-id="${q.id}" style="margin-top:10px; border-color:var(--red-dim); color:var(--red-dim);">Delete</button>
       </div>
     `;
@@ -265,13 +290,14 @@
     const form = e.target;
     const id = form.dataset.id;
     const answer = form.querySelector("textarea").value.trim();
+    const visible = form.querySelector(".visible-toggle").checked;
     const btn = form.querySelector("button");
     btn.disabled = true;
     btn.textContent = "Posting…";
 
     const { error } = await supabaseClient
       .from("questions")
-      .update({ answer, answered: true, answered_at: new Date().toISOString() })
+      .update({ answer, answered: true, answered_at: new Date().toISOString(), visible })
       .eq("id", id);
 
     if (error) {
