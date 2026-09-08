@@ -30,12 +30,18 @@
 <section class="hero">
   <div class="wrap">
     <div class="eyebrow">Division B</div>
-    <h1>BHMS Science Olympiad</h1>
+    <h1>BHMS Sci Oly</h1>
     <p class="lede">A high school–run program coaching Bernardo Heights Middle School students through Division B Science Olympiad — life science, earth science, physics, engineering, and inquiry events, built and studied together every season.</p>
     <div class="hero-actions">
       <a href="events.html" class="btn btn-primary">Browse events →</a>
       <a href="ask.html" class="btn">Ask a question</a>
     </div>
+  </div>
+</section>
+
+<section id="announcements" style="padding:32px 0 0;">
+  <div class="wrap">
+    <div id="announcements-list"></div>
   </div>
 </section>
 
@@ -127,6 +133,35 @@
   </div>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
 <script src="js/main.js"></script>
+<script>
+  async function loadAnnouncements() {
+    const container = document.getElementById("announcements-list");
+    const { data, error } = await supabaseClient
+      .from("announcements")
+      .select("*")
+      .eq("active", true)
+      .order("created_at", { ascending: false });
+
+    if (error || !data || data.length === 0) {
+      container.innerHTML = "";
+      return;
+    }
+
+    container.innerHTML = data.map((a) => `
+      <div class="announcement">
+        <span class="flag">Announcement</span>
+        <div class="content">
+          <h4>${escapeHTML(a.title)}</h4>
+          ${a.body ? `<p>${escapeHTML(a.body)}</p>` : ""}
+          <span class="date">Posted ${timeAgo(a.created_at)}</span>
+        </div>
+      </div>
+    `).join("");
+  }
+  loadAnnouncements();
+</script>
 </body>
 </html>

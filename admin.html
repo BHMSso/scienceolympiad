@@ -61,6 +61,7 @@
     <div class="admin-tabs">
       <button class="admin-tab-btn active" data-tab="questions">Answer Questions</button>
       <button class="admin-tab-btn" data-tab="upload">Upload Resources</button>
+      <button class="admin-tab-btn" data-tab="announcements">Announcements</button>
     </div>
 
     <!-- ANSWER QUESTIONS -->
@@ -105,6 +106,27 @@
         </form>
       </div>
     </div>
+
+    <!-- ANNOUNCEMENTS -->
+    <div class="admin-panel" id="panel-announcements">
+      <div class="card" style="max-width:560px; margin-bottom:28px;">
+        <form id="announcement-form">
+          <div class="field">
+            <label for="ann-title">Title</label>
+            <input type="text" id="ann-title" required placeholder="e.g. Regional competition date set">
+          </div>
+          <div class="field">
+            <label for="ann-body">Details (optional)</label>
+            <textarea id="ann-body" placeholder="e.g. Regionals will be held on 2/6/27. More details to come."></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">Post announcement</button>
+          <div class="status-msg" id="announcement-status"></div>
+        </form>
+      </div>
+
+      <h3 style="font-size:1rem; margin-bottom:14px;">Current announcements</h3>
+      <div id="announcements-admin-list"><p class="qa-empty">Loading…</p></div>
+    </div>
   </div>
 </section>
 
@@ -144,6 +166,7 @@
     dashboardSection.style.display = "block";
     loadQuestions();
     populateEventSelect();
+    loadAnnouncementsAdmin();
   }
 
   document.getElementById("login-form").addEventListener("submit", async (e) => {
@@ -375,6 +398,93 @@
       submitBtn.textContent = "Post resource";
     }
   });
+
+  // ---------- announcements ----------
+  document.getElementById("announcement-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const statusEl = document.getElementById("announcement-status");
+    statusEl.classList.remove("ok", "err");
+
+    const title = document.getElementById("ann-title").value.trim();
+    const body = document.getElementById("ann-body").value.trim();
+    const submitBtn = e.target.querySelector("button[type=submit]");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Posting…";
+
+    const { error } = await supabaseClient.from("announcements").insert({ title, body });
+
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Post announcement";
+
+    if (error) {
+      statusEl.textContent = "Something went wrong — try again.";
+      statusEl.classList.add("err", "show");
+      console.error(error);
+    } else {
+      statusEl.textContent = "Announcement posted.";
+      statusEl.classList.add("ok", "show");
+      e.target.reset();
+      loadAnnouncementsAdmin();
+    }
+  });
+
+  async function loadAnnouncementsAdmin() {
+    const list = document.getElementById("announcements-admin-list");
+    const { data, error } = await supabaseClient
+      .from("announcements")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      list.innerHTML = `<p class="qa-empty">Couldn't load announcements.</p>`;
+      console.error(error);
+      return;
+    }
+    if (!data || data.length === 0) {
+      list.innerHTML = `<p class="qa-empty">No announcements posted yet.</p>`;
+      return;
+    }
+
+    list.innerHTML = data.map((a) => `
+      <div class="qa-item">
+        <div class="q" style="font-family:var(--display);">${escapeHTML(a.title)}</div>
+        ${a.body ? `<p style="color:var(--ink-soft); margin:6px 0 0;">${escapeHTML(a.body)}</p>` : ""}
+        <div style="font-family:var(--mono); font-size:.7rem; color:var(--ink-soft); margin-top:8px;">${timeAgo(a.created_at)}</div>
+        <label style="display:flex; align-items:center; gap:8px; margin-top:12px; text-transform:none; letter-spacing:0; font-size:.85rem; cursor:pointer;">
+          <input type="checkbox" class="announcement-active-switch" data-id="${a.id}" ${a.active ? "checked" : ""} style="width:auto;">
+          Visible on homepage
+        </label>
+        <button type="button" class="btn delete-announcement-btn" data-id="${a.id}" style="margin-top:10px; border-color:var(--red-dim); color:var(--red-dim);">Delete</button>
+      </div>
+    `).join("");
+
+    document.querySelectorAll(".announcement-active-switch").forEach((sw) =>
+      sw.addEventListener("change", async (e) => {
+        const id = e.target.dataset.id;
+        const active = e.target.checked;
+        const { error } = await supabaseClient.from("announcements").update({ active }).eq("id", id);
+        if (error) {
+          alert("Couldn't update — try again.");
+          console.error(error);
+          e.target.checked = !active;
+        }
+      })
+    );
+
+    document.querySelectorAll(".delete-announcement-btn").forEach((btn) =>
+      btn.addEventListener("click", async (e) => {
+        const id = e.target.dataset.id;
+        if (!confirm("Delete this announcement? This can't be undone.")) return;
+        const { error } = await supabaseClient.from("announcements").delete().eq("id", id);
+        if (error) {
+          alert("Couldn't delete — try again.");
+          console.error(error);
+          return;
+        }
+        loadAnnouncementsAdmin();
+      })
+    );
+  }
 
   checkSession();
 </script>
